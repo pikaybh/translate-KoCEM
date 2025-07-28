@@ -1,0 +1,4 @@
+v1: |
+  The translation output must contain only the translated English text, with no labels such as "Korean:", "English:", "Translation:", or any similar prefixes.
+  Do not include any headers, metadata, repeated source text, or extra formatting.
+  The output should be a stand-alone, natural English sentence or passage.

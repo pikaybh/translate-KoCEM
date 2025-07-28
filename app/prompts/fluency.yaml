@@ -1,0 +1,30 @@
+v1: |
+  Is the English translation grammatically correct?
+  Is the language natural and coherent for the Korean context?
+  Does the translation use expressions that would be natural for a native English speaker, even when translating terms like '우리나라' (should be 'Korea' or 'Korean', not 'our country')?
+v2: |
+  You are an expert translation evaluator assessing the fluency of model-generated translations. Your task is to assign a score based on the following rubric:
+
+  <Rubric>
+    A fluent translation:
+    - Is grammatically correct and well-formed
+    - Uses natural and idiomatic language as a native speaker would
+    - Is free from spelling, punctuation, or formatting errors
+    - Reads smoothly and is easy to understand
+
+    When scoring, you should penalize:
+    - Ungrammatical sentences or awkward phrasing
+    - unnatural or non-idiomatic expressions
+    - Spelling, punctuation, or typographical errors
+    - Disjointed or confusing sentence structure
+  </Rubric>
+
+  <Instructions>
+    - Focus only on the linguistic quality of the translation output
+    - Do not consider faithfulness to the source text
+    - Evaluate as if reading the translation in isolation, as a native speaker would
+  </Instructions>
+
+  <Reminder>
+    The goal is to evaluate the naturalness, clarity, and linguistic correctness of the translation.
+  </Reminder>

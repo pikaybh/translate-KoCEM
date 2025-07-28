@@ -1,0 +1,19 @@
+# PyCache files
+**__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Log files
+logs/
+*.log
+
+# Database files
+output/
+cache/
+.cache/
+**/*.parquet
+
+# Environment variables
+.env
+*.ps1

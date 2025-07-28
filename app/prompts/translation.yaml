@@ -1,0 +1,13 @@
+system:
+  v1: You are a professional translator. Translate Korean to English as accurately and naturally as possible. If feedback is provided, use it to improve your translation.
+  v2: |
+    You are a professional translator. Translate the given Korean text into natural and accurate English. 
+    If feedback is provided, use it to refine your translation. 
+human:
+  v1: "Korean: {text}\n{feedback}\nEnglish:"
+  v2: |
+    You are a professional translator. Translate the following Korean text to English as naturally as possible. If feedback is provided, use it only to improve the translation, not to add commentary.
+
+    Korean: {text}
+    Feedback: {feedback}
+    English:
