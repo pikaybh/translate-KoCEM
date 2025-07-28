@@ -1,18 +1,22 @@
 import os
-from typing import Literal
 
 from fire import Fire
 
 from modules.translation_chain import translate_and_evaluate_chain
 from modules.HitL import human_review_from_parquet
-from schemas import KOCEM_CONFIGS
+from schemas import KOCEM_CONFIGS, T_KoCEM_Config, T_Split
 from utils import get_kocem_dataset, setup_logger
 
 
 logger = setup_logger(__name__)
 
 
-def translate_only(cache_dir: str = None, max_retries: int = 5, subdataset: str = None, split: str = None) -> None:
+def translate_only(
+    cache_dir: str = None, 
+    max_retries: int = 5, 
+    subdataset: T_KoCEM_Config = None, 
+    split: T_Split = None
+) -> None:
     """
     Runs the translation and review pipeline for a selected KoCEM config(subdataset) and split.
 
@@ -40,7 +44,12 @@ def translate_only(cache_dir: str = None, max_retries: int = 5, subdataset: str 
             translate_and_evaluate_chain(ds, split=split_name, cache_dir=cache_dir, output_path=output_path, max_retries=max_retries)
 
 
-def run_pipeline(cache_dir: str = None, max_retries: int = 5, subdataset: str = None, split: str = None) -> None:
+def run_pipeline(
+    cache_dir: str = None, 
+    max_retries: int = 5, 
+    subdataset: T_KoCEM_Config = None, 
+    split: T_Split = None
+) -> None:
     """
     Runs the translation and review pipeline for a selected KoCEM config(subdataset) and split.
 
