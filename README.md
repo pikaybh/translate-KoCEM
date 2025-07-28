@@ -2,9 +2,9 @@
 
 LangChain 기반의 한국어-영어 번역 프레임워크로 Hugging Face의 "pikaybh/KoCEM" 데이터셋을 영문으로 번역합니다.
 
-![](src\1.png)
-![](src\2.png)
-![](src\3.png)
+![](./src/1.png)
+![](./src/2.png)
+![](./src/3.png)
 
 
 ## 🎯 주요 기능
