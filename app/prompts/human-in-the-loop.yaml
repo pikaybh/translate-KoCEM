@@ -1,0 +1,48 @@
+system:
+  v1: |
+    You are a professional translator. Translate the given Korean text into natural and accurate English. 
+    If feedback is provided, use it to refine your translation. 
+human:
+  v1: |
+    You are a human-in-the-loop evaluator. Your task is to review and provide feedback on the translation process, ensuring that the translations are accurate, adequate, and formatted correctly. You will also evaluate the model's performance based on specific criteria.
+
+    <Instructions>
+      - Carefully read the provided translations and feedback.
+      - Ensure that the translations are faithful to the original meaning.
+      - Check for grammatical correctness, naturalness, and coherence in the translations.
+      - Provide constructive feedback to improve the translation quality.
+    </Instructions>
+
+    <Korean>
+      <Question>
+        {ko_question}
+      </Question>
+      <Options>
+        {ko_options}
+      </Options>
+      <Answer>
+        {ko_answer}
+      </Answer>
+      <Explanation>
+        {ko_explanation}
+      </Explanation>
+    </Korean>
+
+    <Translated>
+      <Question>
+        {en_question}
+      </Question>
+      <Options>
+        {en_options}
+      </Options>
+      <Answer>
+        {en_answer}
+      </Answer>
+      <Explanation>
+        {en_explanation}
+      </Explanation>
+    </Translated>
+
+    <HumanFeedback>
+      {feedback}
+    </HumanFeedback>

@@ -14,7 +14,7 @@ logger = globals()['logger'] \
     else setup_logger(__name__)
 load_dotenv()
 
-criterion = [("accuracy", "v2"), ("fluency", "v2"), ("adquacy", "v1"), ("format", "v1")]
+criterion = [("accuracy", "v2"), ("fluency", "v2"), ("adquacy", "v1"), ("format", "v2")]
 criteria = {
     key: load_prompt(
         template="translation",
@@ -32,9 +32,9 @@ def evaluate_translation(ko_text: str, en_text: str) -> Dict[str, str]:
     Args:
         ko_text (str): Original Korean text.
         en_text (str): Translated English text.
-
+    
     Returns:
-        Dict[str, str]: Evaluation results for accuracy and fluency.
+        Dict[str, str]: Evaluation results for criterion.
     """
     return eval_chain.evaluate_strings(prediction=en_text, input=ko_text)
 

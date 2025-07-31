@@ -3,6 +3,8 @@ import yaml
 
 from dotenv import load_dotenv
 
+from schemas import Quiz, Option
+
 load_dotenv()
 ROOT_ALIAS = os.getenv('SRC', 'app')
 PROMPT_DIR = os.getenv('PROMPT_DIR', 'prompts')
@@ -94,4 +96,69 @@ def load_prompt(
     return prompts_final
 
 
-__all__ = ['load_prompt']
+def label_alpha_numeric(idx: int) -> str:
+    """
+    Converts an index to an alphanumeric label (A, B, C, ...).
+    
+    Args:
+        idx (int): Index to convert.
+    
+    Returns:
+        str: Alphanumeric label corresponding to the index.
+    """
+    return chr(ord('A') + idx) if idx < 26 else f"AA{idx - 26}"
+
+
+def construct_option(
+    option: Option
+) -> str:
+    """
+    Constructs a string representation of a single option.
+
+    Args:
+        option (Option): The Option object containing label and value.
+
+    Returns:
+        str: Formatted string of the option.
+    """
+    return f"{option.label}: {option.value.strip()}"
+
+
+def construct_options(
+    options: list[Option]
+) -> str:
+    """
+    Constructs a string representation of options from a Quiz object.
+
+    Args:
+        quiz (Quiz): The Quiz object containing options.
+
+    Returns:
+        str: Formatted string of options.
+    """
+    # options_str = []
+    # for option in options:
+        # label = label_alpha_numeric(idx)
+        # description = option.description.strip()
+        # options_str.append(f"{label}: {description}")
+        # options_str.append(construct_option(option))
+    
+    return "\n    ".join([construct_option(option) for option in options])
+
+
+def construct_answer(
+    quiz: Quiz
+) -> str:
+    """
+    Constructs a string representation of the answer from a Quiz object.
+
+    Args:
+        quiz (Quiz): The Quiz object containing the answer.
+
+    Returns:
+        str: Formatted string of the answer.
+    """
+    return f"    {quiz.answer.label}: {quiz.answer.description.strip()}"
+
+
+__all__ = ['load_prompt', 'label_alpha_numeric', 'construct_option', 'construct_options']

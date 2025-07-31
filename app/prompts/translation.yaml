@@ -11,3 +11,32 @@ human:
     Korean: {text}
     Feedback: {feedback}
     English:
+  v3: |
+    You are a professional translator. 
+    Translate the following Korean text to English as naturally as possible. 
+    If feedback is provided, use it only to improve the translation, not to add commentary.
+    If there are any feedbacks, use them to refine your translation.
+
+    <Rules>
+      - Do not include any labels such as "Korean:", "English:", "Translation:", or similar prefixes in the output.
+      - Do not generate explanation if Korean explanation is not provided.
+    </Rules>
+
+    <Korean>
+      <Question>
+        {ko_question}
+      </Question>
+      <Options>
+        {ko_options}
+      </Options>
+      <Answer>
+        {ko_answer}
+      </Answer>
+      <Explanation>
+        {ko_explanation}
+      </Explanation>
+    </Korean>
+
+    <Feedback>
+      {feedback}
+    </Feedback>
