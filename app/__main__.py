@@ -1,24 +1,21 @@
 import os
 
+import mlflow
 from fire import Fire
 
-from agents import trace
-from modules.translation_chain import translate_and_evaluate_chain
-from modules.HitL import human_review_from_parquet
-from schemas import KOCEM_CONFIGS, T_KoCEM_Config, T_Split
-from utils import get_kocem_dataset, setup_logger
-
-
-logger = setup_logger(__name__)
+from modules import translate_and_evaluate_chain, human_review_from_parquet
+from schemas import KOCEM_CONFIGS, KoCEMConfigType, KoCEMDataSplitType
+from utils import get_kocem_dataset, refresh_terminal, setup_logger
 
 
 def translate_only(
     cache_dir: str = None, 
     max_retries: int = 5, 
-    subdataset: T_KoCEM_Config = None, 
-    split: T_Split = None,
-    ignore: T_Split = None
-) -> None:
+    subdataset: KoCEMConfigType = None, 
+    split: KoCEMDataSplitType = None,
+    ignore: KoCEMDataSplitType = None,
+    overwrite: bool = False
+):
     """
     Runs the translation and review pipeline for a selected KoCEM config(subdataset) and split.
 
@@ -43,14 +40,23 @@ def translate_only(
         if ignore:
             splits_to_run = [s for s in splits_to_run if s != ignore]
         for split_name in splits_to_run:
+            refresh_terminal()
             logger.info(f"[START] {config}/{split_name} 번역+평가")
             output_path = f"{output_dir}/{eval_result_dir}/{config}/{split_name}.parquet"
-            translate_and_evaluate_chain(ds, split=split_name, cache_dir=cache_dir, output_path=output_path, max_retries=max_retries)
+            if not overwrite and os.path.exists(output_path):
+                logger.info(f"[SKIP] {output_path} already exists and {overwrite=}. Skipping.")
+                continue
+            try:
+                translate_and_evaluate_chain(ds, split=split_name, cache_dir=cache_dir, output_path=output_path, max_retries=max_retries)
+            except Exception as e:
+                logger.error(f"Error during translation and evaluation for {config}/{split_name}: {e}")
+                logger.info(f"Skipping {config}/{split_name} due to error.")
+                continue
 
 
 def from_translation_chain(
-    subdataset: T_KoCEM_Config = None, 
-    split: T_Split = None
+    subdataset: KoCEMConfigType = None, 
+    split: KoCEMDataSplitType = None
 ) -> None:
     """
     Runs the translation and review pipeline for a selected KoCEM config(subdataset) and split.
@@ -80,8 +86,8 @@ def from_translation_chain(
 
 
 def from_HitL_output(
-    subdataset: T_KoCEM_Config = None, 
-    split: T_Split = None,
+    subdataset: KoCEMConfigType = None, 
+    split: KoCEMDataSplitType = None,
     again: bool = False
 ) -> None:
     """
@@ -105,7 +111,6 @@ def from_HitL_output(
             if again:
                 # 모든 row의 human_feedback을 True로 강제하여 다시 리뷰
                 import pandas as pd
-                import pyarrow
                 try:
                     df = pd.read_parquet(human_review_path)
                 except Exception:
@@ -119,8 +124,8 @@ def from_HitL_output(
 def run_pipeline(
     cache_dir: str = None, 
     max_retries: int = 5, 
-    subdataset: T_KoCEM_Config = None, 
-    split: T_Split = None
+    subdataset: KoCEMConfigType = None, 
+    split: KoCEMDataSplitType = None
 ) -> None:
     """
     Runs the translation and review pipeline for a selected KoCEM config(subdataset) and split.
@@ -181,5 +186,6 @@ def main(*args, **kwargs):
 
 
 if __name__ == "__main__":
-    with trace("TranslateKoCEM:2"):
-        Fire(main)
+    logger = setup_logger(__name__)
+    mlflow.openai.autolog()
+    Fire(main)

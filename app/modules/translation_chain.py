@@ -7,10 +7,10 @@ from tqdm import tqdm
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate , HumanMessagePromptTemplate
 
-from modules.evaluator import evaluate_translation
+from models import evaluate_translation, evallm
 from schemas import Quiz, Option
 from utils import (get_kocem_dataset, load_prompt, save_parquet, setup_logger, label_alpha_numeric, 
-                    construct_option, construct_options, dict2list, serialize_for_parquet)
+                    construct_option, construct_options, serialize_for_parquet)
 
 
 logger = globals()['logger'] \
@@ -18,10 +18,12 @@ logger = globals()['logger'] \
     else setup_logger(__name__)
 load_dotenv()
 
-PROBELM_LIST = [
+PROBELM2SOLVE = {
     """
-"""
-]
+""": ", ",
+"'\n '": "', '"
+}
+
 
 # 번역 프롬프트 템플릿 및 체인 생성 (ChatPromptTemplate for chat model)
 translation_prompt = ChatPromptTemplate.from_messages([
@@ -69,174 +71,61 @@ def extract_feedback(eval_result):
     return '\n'.join(feedbacks).strip()
 
 
-def translate_sample_with_evaluation(
-    ko_text: str,
-    max_retries: int = 2,
-) -> dict:
-    """
-    Translates a single Korean sentence to English with evaluator feedback loop.
-
-    Args:
-        ko_text (str): Korean text to translate.
-        max_retries (int): Maximum number of feedback-based retries.
-    
-    Returns:
-        dict: Dictionary containing original Korean text, translated English text, evaluation results, and number of retries.
-    """
-
-    attempt = 0
-    en_text = None
-    feedbacks = []
-    while attempt <= max_retries:
-        feedback_str = "\n".join(feedbacks) if feedbacks else ""
-        translation_response = translation_chain.invoke({"text": ko_text, "feedback": feedback_str})
-        logger.debug(translation_response)
-        en_text = translation_response.content
-
-        eval_result = evaluate_translation(ko_text, en_text)
-        value = str(eval_result.get('value', '')).strip().lower()
-        score = float(eval_result.get('score', 0))
-        passed = value in ['y', 'yes'] or score >= 0.8
-        logger.debug(f"Try {attempt}: {ko_text} -> {en_text} | Eval: {eval_result}")
-
-        if passed:
-            break
-
-        feedbacks.append(extract_feedback(eval_result))
-        attempt += 1
-
-    return {"ko": ko_text, "en": en_text, "eval": eval_result, "retries": attempt}
-
-
-def translate_text(text: str) -> str:
-    """ 
-    Translates a single text string using the translation chain.
-    
-    Args:
-        text (str): Korean text to translate.
-    
-    Returns:
-        str: Translated English text.
-    """
-    if not text:
-        logger.debug("Empty text provided for translation.")
-        return ""
-    translation_response = translation_chain.invoke({"text": text, "feedback": ""})
-    logger.debug(translation_response)
-    return translation_response.content
-
-
-# def translate_fields_with_evaluation(item: dict, max_retries: int = 2) -> dict:
+# def translate_sample_with_evaluation(
+#     ko_text: str,
+#     max_retries: int = 2,
+# ) -> dict:
 #     """
-#     Translates fields of a dataset item with evaluation loop.
-
+#     Translates a single Korean sentence to English with evaluator feedback loop.
+# 
 #     Args:
-#         item (dict): Dataset item containing fields to translate.
-    
+#         ko_text (str): Korean text to translate.
+#         max_retries (int): Maximum number of feedback-based retries.
+#     
 #     Returns:
-#         dict: Translated item with evaluation results.
+#         dict: Dictionary containing original Korean text, translated English text, evaluation results, and number of retries.
 #     """
-
-#     # question
-#     ko_question = item.get("question", "")
-#     # Feedback/evaluation loop for question
-#     eval_loop = []
-#     feedbacks = []
+# 
 #     attempt = 0
-#     en_question = None
+#     en_text = None
+#     feedbacks = []
 #     while attempt <= max_retries:
 #         feedback_str = "\n".join(feedbacks) if feedbacks else ""
-#         en_question_try = translation_chain.invoke({"text": ko_question, "feedback": feedback_str}).content
-#         eval_result = evaluate_translation(ko_question, en_question_try)
-#         passed = str(eval_result.get('value', '')).strip().upper() == 'Y'
-#         eval_loop.append({
-#             "attempt": attempt,
-#             "en_question": en_question_try,
-#             "feedback": feedback_str,
-#             **eval_result
-#         })
+#         translation_response = translation_chain.invoke({"text": ko_text, "feedback": feedback_str})
+#         logger.debug(translation_response)
+#         en_text = translation_response.content
+# 
+#         eval_result = evaluate_translation(ko_text, en_text)
+#         value = str(eval_result.get('value', '')).strip().lower()
+#         score = float(eval_result.get('score', 0))
+#         passed = value in ['y', 'yes'] or score >= 0.8
+#         logger.debug(f"Try {attempt}: {ko_text} -> {en_text} | Eval: {eval_result}")
+# 
 #         if passed:
-#             en_question = en_question_try
 #             break
+# 
 #         feedbacks.append(extract_feedback(eval_result))
 #         attempt += 1
-#     if en_question is None:
-#         en_question = en_question_try
+# 
+#     return {"ko": ko_text, "en": en_text, "eval": eval_result, "retries": attempt}
 
-#     # options robust parsing
-#     ko_options_raw = item.get("options", "")
-#     for problem in PROBELM_LIST:
-#         ko_options_raw = ko_options_raw.replace(problem, ", ")
-#     options_list = eval(ko_options_raw)
-#     # options_list = []
-#     # if ko_options_raw:
-#     #     try:
-#     #         options_list = json.loads(ko_options_raw)
-#     #         if not isinstance(options_list, list):
-#     #             options_list = [ko_options_raw]
-#     #     except Exception:
-#     #         try:
-#     #             options_list = eval(ko_options_raw)
-#     #             if not isinstance(options_list, list):
-#     #                 options_list = [ko_options_raw]
-#     #         except Exception:
-#     #             for delim in ["|", ",", ";", "/", "\\n"]:
-#     #                 if delim in ko_options_raw:
-#     #                     options_list = [opt.strip() for opt in ko_options_raw.split(delim) if opt.strip()]
-#     #                     break
-#     #             if not options_list:
-#     #                 options_list = [ko_options_raw]
-#     # if len(options_list) > 1 and all(len(opt) == 1 for opt in options_list):
-#     #     options_list = ["".join(options_list)]
 
-#     # Option translation with individual feedback loop
-#     ko_options_labeled = options_list
-#     en_options_labeled = []
-#     for idx, option in enumerate(options_list):
-#         feedbacks = []
-#         attempt = 1
-#         en_option = None
-#         while attempt <= max_retries:
-#             option_label = chr(ord("A")+idx)
-#             feedback_str = "\n".join(feedbacks) if feedbacks else ""
-#             en_option_try = translation_chain.invoke({"text": option, "feedback": feedback_str}).content
-#             logger.debug(f"Translating option [Trial {attempt}] {option_label}: {option} -> {en_option_try}")
-#             eval_result = evaluate_translation(option, en_option_try)
-#             logger.debug(f"Eval result for option [Trial {attempt}] {option_label}: {eval_result}")
-#             passed = str(eval_result.get('value', '')).strip().upper() == 'Y'
-#             if passed:
-#                 en_option = en_option_try
-#                 break
-#             feedbacks.append(extract_feedback(eval_result))
-#             logger.debug(f"Feedback for option [Trial {attempt}] {option_label}: {feedbacks[-1]}")
-#             attempt += 1
-#         if en_option is None:
-#             en_option = en_option_try
-#         en_options_labeled.append(en_option)
-
-#     # answer
-#     ko_answer = item.get("answer", "")
-#     answer_idx = ko_options_labeled.index(ko_answer)
-#     en_answer = en_options_labeled[answer_idx]  # translate_text(ko_answer)
-
-#     # explanation
-#     ko_explanation = item.get("explanation", "")
-#     en_explanation = translate_text(ko_explanation)
-
-#     result = dict(item)
-#     result.update({
-#         "ko_question": ko_question,
-#         "en_question": en_question,
-#         "ko_options": ko_options_labeled,
-#         "en_options": en_options_labeled,
-#         "ko_answer": ko_answer,
-#         "en_answer": en_answer,
-#         "ko_explanation": ko_explanation,
-#         "en_explanation": en_explanation,
-#         "eval": eval_loop[-1] if eval_loop else {},
-#         "eval_loop": eval_loop
-#     })
-#     return result
+# def translate_text(text: str) -> str:
+#     """ 
+#     Translates a single text string using the translation chain.
+#     
+#     Args:
+#         text (str): Korean text to translate.
+#     
+#     Returns:
+#         str: Translated English text.
+#     """
+#     if not text:
+#         logger.debug("Empty text provided for translation.")
+#         return ""
+#     translation_response = translation_chain.invoke({"text": text, "feedback": ""})
+#     logger.debug(translation_response)
+#     return translation_response.content
 
 
 def translate_chain_and_evaluation_loop(
@@ -260,9 +149,10 @@ def translate_chain_and_evaluation_loop(
 
     # Prepare options from dataset item
     ko_options_raw = item.get("options", "")
-    for problem in PROBELM_LIST:
-        ko_options_raw = ko_options_raw.replace(problem, ", ")
-    options_list = eval(ko_options_raw)
+    for problem, solve in PROBELM2SOLVE.items():
+        ko_options_raw = ko_options_raw.replace(problem, solve)
+    # options_list = eval(ko_options_raw)
+    options_list = evallm(messages=ko_options_raw)
     ko_options = [
         Option(
             label=label_alpha_numeric(idx),
@@ -367,26 +257,33 @@ def process_dataset_with_evaluation(
     #     logger.debug(f"[DEBUG] 첫 번째 item 전체: {items[0]}")
     
     for item in tqdm(items, desc=f"Translating {split} items", unit="item"):
-        result = translate_chain_and_evaluation_loop(item, max_retries=max_retries)
-        for k, v in result.items():
-            # If Option or Quiz or their list, convert to dict/list-of-dict
-            if isinstance(v, (Option, Quiz)):
-                result[k] = serialize_for_parquet(v)
-            elif isinstance(v, list) and v and isinstance(v[0], (Option, Quiz)):
-                result[k] = serialize_for_parquet(v)
-            elif isinstance(v, dict):
-                # If dict contains Option/Quiz, convert those values
-                if any(isinstance(val, (Option, Quiz)) for val in v.values()):
-                    result[k] = {kk: serialize_for_parquet(val) if isinstance(val, (Option, Quiz)) else val for kk, val in v.items()}
-                else:
-                    result[k] = v
-            elif isinstance(v, list):
-                # If list contains Option/Quiz, convert those items
-                if any(isinstance(item, (Option, Quiz)) for item in v):
-                    result[k] = [serialize_for_parquet(item) if isinstance(item, (Option, Quiz)) else item for item in v]
-                else:
-                    result[k] = v
-        results.append(result)
+        try:
+            result = translate_chain_and_evaluation_loop(item, max_retries=max_retries)
+            for k, v in result.items():
+                # If Option or Quiz or their list, convert to dict/list-of-dict
+                if isinstance(v, (Option, Quiz)):
+                    result[k] = serialize_for_parquet(v)
+                elif isinstance(v, list) and v and isinstance(v[0], (Option, Quiz)):
+                    result[k] = serialize_for_parquet(v)
+                elif isinstance(v, dict):
+                    # If dict contains Option/Quiz, convert those values
+                    if any(isinstance(val, (Option, Quiz)) for val in v.values()):
+                        result[k] = {kk: serialize_for_parquet(val) if isinstance(val, (Option, Quiz)) else val for kk, val in v.items()}
+                    else:
+                        result[k] = v
+                elif isinstance(v, list):
+                    # If list contains Option/Quiz, convert those items
+                    if any(isinstance(item, (Option, Quiz)) for item in v):
+                        result[k] = [serialize_for_parquet(item) if isinstance(item, (Option, Quiz)) else item for item in v]
+                    else:
+                        result[k] = v
+            results.append(result)
+        
+        except Exception as e:
+            logger.error(f"Error processing item {item.get('id', 'unknown')}: {e}")
+            logger.info(f"Skipping item due to error: {item.get('id', 'unknown')}")
+            continue
+
     logger.debug(f"[DEBUG] 번역 결과 리스트 길이: {len(results)}")
     if results:
         logger.debug(f"[DEBUG] 번역 결과 샘플: {results[0]}")

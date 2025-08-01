@@ -26,19 +26,6 @@ def get_kocem_dataset(config: str, cache_dir: str = '.cache') -> DatasetDict:
     return load_dataset('pikaybh/KoCEM', config, cache_dir=cache_dir)
 
 
-def dict2list(data: dict) -> list:
-    """
-    Converts a dictionary to a list of its values.
-
-    Args:
-        data (dict): Input dictionary.
-
-    Returns:
-        list: List of values from the dictionary.
-    """
-    return list(data.values())
-
-
 def main() -> None:
     """
     Example usage for KoCEM dataset download and logging.
@@ -51,4 +38,4 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-__all__ = ['get_kocem_dataset', 'dict2list']
+__all__ = ['get_kocem_dataset']

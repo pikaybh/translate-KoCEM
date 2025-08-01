@@ -146,19 +146,4 @@ def construct_options(
     return "\n    ".join([construct_option(option) for option in options])
 
 
-def construct_answer(
-    quiz: Quiz
-) -> str:
-    """
-    Constructs a string representation of the answer from a Quiz object.
-
-    Args:
-        quiz (Quiz): The Quiz object containing the answer.
-
-    Returns:
-        str: Formatted string of the answer.
-    """
-    return f"    {quiz.answer.label}: {quiz.answer.description.strip()}"
-
-
 __all__ = ['load_prompt', 'label_alpha_numeric', 'construct_option', 'construct_options']

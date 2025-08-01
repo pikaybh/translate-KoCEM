@@ -1,4 +1,4 @@
-from typing import Dict, Literal, List
+from typing import Literal, List
 
 from pydantic import BaseModel, Field
 
@@ -8,7 +8,7 @@ KOCEM_CONFIGS = [
     'Drawing_Interpretation', 'Domain_Reasoning', 'Interior', 'Industry_Jargon', 'Materials',
     'Safety_Management', 'Standard_Nomenclature', 'Structural_Engineering'
 ]
-T_KoCEM_Config = Literal[
+KoCEMConfigType = Literal[
     "Architectural_Planning",
     "Building_System",
     "Comprehensive_Understanding",
@@ -22,68 +22,10 @@ T_KoCEM_Config = Literal[
     "Standard_Nomenclature",
     "Structural_Engineering"
 ]
-T_Split = Literal["dev", "extra", "test", "val"]
-###########
-
-# class Option(BaseModel):
-#     """
-#     Represents a single option in the translation task.
-#     """
-#     label: str = Field(
-#         ...,
-#         description="Alpha-numeric identifier for the option.",
-#         example=[
-#             "A",
-#             "B",
-#             "C"
-#         ]
-#     )
-#     description: str = Field(
-#         ...,
-#         description="Description of the option.",
-#         example=[
-#             "Description of option A",
-#             "Description of option B",
-#             "Description of option C"
-#         ]
-#     )
-# class Options(BaseModel):
-#     option: Option = Field(
-#         ...,
-#         description="Options for the translation task.",
-#         example=[
-#             {
-#                 "label": "A",
-#                 "description": "Description of option A"
-#             },
-#             {
-#                 "label": "B",
-#                 "description": "Description of option B"
-#             },
-#             {
-#                 "label": "C",
-#                 "description": "Description of option C"
-#             }
-#         ]
-#     )
-
-# class Options(BaseModel):
-#     option: Dict[Literal["A", "B", "C", "D", "E", "F", "G"], str] = Field(
-#         ...,
-#         description="Options for the translation task.",
-#         example={
-#             "A": "Description of option A",
-#             "B": "Description of option B",
-#             "C": "Description of option C",
-#             "D": "Description of option D",
-#             "E": "Description of option E",
-#             "F": "Description of option F",
-#             "G": "Description of option G"
-#         }
-#     )
-
-# OptionType = Dict[Literal["A", "B", "C", "D", "E", "F", "G"], str]
+KoCEMDataSplitType = Literal["dev", "extra", "test", "val"]
 LabelType = Literal["A", "B", "C", "D", "E", "F", "G"]
+
+
 
 class Option(BaseModel):
     """
@@ -107,6 +49,8 @@ class Option(BaseModel):
             "Description of option C"
         ]
     )
+
+
 
 class Quiz(BaseModel):
     question: str = Field(
@@ -148,4 +92,6 @@ class Quiz(BaseModel):
         ]
     )
 
-__all__ = ["KOCEM_CONFIGS", "T_KoCEM_Config", "T_Split", "Quiz", "Option"]
+
+
+__all__ = ["KOCEM_CONFIGS", "KoCEMConfigType", "KoCEMDataSplitType", "Quiz", "Option"]

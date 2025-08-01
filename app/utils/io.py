@@ -51,4 +51,9 @@ def serialize_for_parquet(obj):
     return obj
 
 
-__all__ = ['save_parquet', 'serialize_for_parquet']
+def refresh_terminal():
+    # Terminal refresh (ctrl+l effect)
+    print("\033[2J\033[1;1H", end="")
+
+
+__all__ = ['save_parquet', 'serialize_for_parquet', 'refresh_terminal']
