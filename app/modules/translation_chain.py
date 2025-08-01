@@ -83,63 +83,6 @@ def extract_feedback(eval_result):
     return '\n'.join(feedbacks).strip()
 
 
-# def translate_sample_with_evaluation(
-#     ko_text: str,
-#     max_retries: int = 2,
-# ) -> dict:
-#     """
-#     Translates a single Korean sentence to English with evaluator feedback loop.
-# 
-#     Args:
-#         ko_text (str): Korean text to translate.
-#         max_retries (int): Maximum number of feedback-based retries.
-#     
-#     Returns:
-#         dict: Dictionary containing original Korean text, translated English text, evaluation results, and number of retries.
-#     """
-# 
-#     attempt = 0
-#     en_text = None
-#     feedbacks = []
-#     while attempt <= max_retries:
-#         feedback_str = "\n".join(feedbacks) if feedbacks else ""
-#         translation_response = translation_chain.invoke({"text": ko_text, "feedback": feedback_str})
-#         logger.debug(translation_response)
-#         en_text = translation_response.content
-# 
-#         eval_result = evaluate_translation(ko_text, en_text)
-#         value = str(eval_result.get('value', '')).strip().lower()
-#         score = float(eval_result.get('score', 0))
-#         passed = value in ['y', 'yes'] or score >= 0.8
-#         logger.debug(f"Try {attempt}: {ko_text} -> {en_text} | Eval: {eval_result}")
-# 
-#         if passed:
-#             break
-# 
-#         feedbacks.append(extract_feedback(eval_result))
-#         attempt += 1
-# 
-#     return {"ko": ko_text, "en": en_text, "eval": eval_result, "retries": attempt}
-
-
-# def translate_text(text: str) -> str:
-#     """ 
-#     Translates a single text string using the translation chain.
-#     
-#     Args:
-#         text (str): Korean text to translate.
-#     
-#     Returns:
-#         str: Translated English text.
-#     """
-#     if not text:
-#         logger.debug("Empty text provided for translation.")
-#         return ""
-#     translation_response = translation_chain.invoke({"text": text, "feedback": ""})
-#     logger.debug(translation_response)
-#     return translation_response.content
-
-
 def translate_chain_and_evaluation_loop(
     item: dict,
     max_retries: int = 2
@@ -176,7 +119,7 @@ def translate_chain_and_evaluation_loop(
     # Prepare answer from dataset item
     ko_answer_content = item.get("answer", "")
     ko_answer = Option(
-        label=label_alpha_numeric(options_list.index(ko_answer_content)),
+        label=label_alpha_numeric(options_list.index(ko_answer_content)) if ko_answer_content in options_list else None,
         value=ko_answer_content
     )
 

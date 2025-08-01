@@ -11,6 +11,7 @@ human:
       - Ensure that the translations are faithful to the original meaning.
       - Check for grammatical correctness, naturalness, and coherence in the translations.
       - Provide constructive feedback to improve the translation quality.
+      - If label for the answer is not provided, find the most appropriate label from the options and use it.
     </Instructions>
 
     <Korean>

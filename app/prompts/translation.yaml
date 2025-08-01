@@ -20,6 +20,7 @@ human:
     <Rules>
       - Do not include any labels such as "Korean:", "English:", "Translation:", or similar prefixes in the output.
       - Do not generate explanation if Korean explanation is not provided.
+      - If label for the answer is not provided, find the most appropriate label from the options and use it.
     </Rules>
 
     <Korean>
