@@ -42,6 +42,8 @@ translation_prompt = ChatPromptTemplate.from_messages([
         )
     )
 ])
+
+
 def print_chain(*args):
     """
     Prints the translation chain input for debugging.
@@ -50,7 +52,17 @@ def print_chain(*args):
         logger.debug(arg.messages[0].content)
         logger.debug(arg.messages[1].content)
     return args[0] if args else None
-translation_chain = translation_prompt | print_chain | ChatOpenAI(model="gpt-4.1", store=True).with_structured_output(Quiz)
+
+
+engine = ChatOpenAI(
+    model="gpt-4.1", 
+    store=True,
+    metadata={
+        "KoCEM": "Translate:2",
+        "chain": "translation chain",
+    }
+)
+translation_chain = translation_prompt | print_chain | engine.with_structured_output(Quiz)
 
 
 def extract_feedback(eval_result):
@@ -278,7 +290,7 @@ def process_dataset_with_evaluation(
                     else:
                         result[k] = v
             results.append(result)
-        
+
         except Exception as e:
             logger.error(f"Error processing item {item.get('id', 'unknown')}: {e}")
             logger.info(f"Skipping item due to error: {item.get('id', 'unknown')}")

@@ -21,8 +21,17 @@ criteria = {
         version=version
     ) for (key, version) in criterion
 }
-core_model = ChatOpenAI(model="gpt-4.1")
-eval_chain = CriteriaEvalChain.from_llm(llm=core_model, criteria=criteria)
+
+engine = ChatOpenAI(
+    model="gpt-4.1", 
+    store=True,
+    metadata={
+        "KoCEM": "Translate:2",
+        "chain": "CriteriaEvalChain",
+        "rule": "evaluator",
+    }
+)
+eval_chain = CriteriaEvalChain.from_llm(llm=engine, criteria=criteria)
 
 
 def evaluate_translation(ko_text: str, en_text: str) -> Dict[str, str]:

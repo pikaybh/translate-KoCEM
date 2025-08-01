@@ -20,3 +20,4 @@ cache/
 
 # MLflow tracking
 mlruns/
+mlartifacts/

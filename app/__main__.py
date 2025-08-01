@@ -1,8 +1,5 @@
 import os
 
-import mlflow
-from fire import Fire
-
 from modules import translate_and_evaluate_chain, human_review_from_parquet
 from schemas import KOCEM_CONFIGS, KoCEMConfigType, KoCEMDataSplitType
 from utils import get_kocem_dataset, refresh_terminal, setup_logger
@@ -186,6 +183,14 @@ def main(*args, **kwargs):
 
 
 if __name__ == "__main__":
+    import mlflow
+    from fire import Fire
+    
+    
     logger = setup_logger(__name__)
+
+    mlflow.set_tracking_uri("http://localhost:5000")
+    mlflow.set_experiment("TranslateKoCEM:2")
     mlflow.openai.autolog()
+
     Fire(main)

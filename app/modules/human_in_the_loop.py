@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 from dotenv import load_dotenv
-from langchain.chat_models import init_chat_model
+from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate , HumanMessagePromptTemplate
 
 from rich.console import Console, Group
@@ -42,6 +42,8 @@ hitl_translation_prompt = ChatPromptTemplate.from_messages([
         )
     )
 ])
+
+
 def print_chain(*args):
     """
     Prints the translation chain input for debugging.
@@ -50,7 +52,17 @@ def print_chain(*args):
         logger.debug(arg.messages[0].content)
         logger.debug(arg.messages[1].content)
     return args[0] if args else None
-hitl_translation_chain = hitl_translation_prompt | print_chain | init_chat_model("openai:gpt-4.1").with_structured_output(Quiz)
+
+
+engine = ChatOpenAI(
+    model="gpt-4.1", 
+    store=True,
+    metadata={
+        "KoCEM": "Translate:2",
+        "chain": "Human-in-the-Loop chain",
+    }
+)
+hitl_translation_chain = hitl_translation_prompt | print_chain | engine.with_structured_output(Quiz)
 
 
 def show_history(console, eval_history, eval_result=None):

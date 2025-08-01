@@ -1,8 +1,9 @@
 from typing import List
+from functools import lru_cache
 
 from dotenv import load_dotenv
 
-from langchain.chat_models import init_chat_model
+from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 
 from schemas import OptionParseType
@@ -32,27 +33,30 @@ evallm_prompt = ChatPromptTemplate.from_messages([
         )
     )
 ])
+engine = ChatOpenAI(
+    model="gpt-4.1", 
+    store=True,
+    metadata={
+        "KoCEM": "Translate:2",
+        "chain": "evallm",
+    }
+)
 
 
-def evallm(
-    messages: str,
-    model: str = "openai:gpt-4.1"
-) -> List[str]:
+@lru_cache(maxsize=1_024)
+def evallm(messages: str) -> List[str]:
     """
     Evaluates a list of messages using a hacker-like evaluation chain.
 
     Args:
         messages (str): The input messages to evaluate.
-        model (str): The model to use for evaluation.
-        **kwargs: Additional keyword arguments for the chat model.
 
     Returns:
         dict: Evaluation results.
     """
-    chat_model = init_chat_model(model)
     chain_ = (
         evallm_prompt
-        | chat_model.with_structured_output(OptionParseType)
+        | engine.with_structured_output(OptionParseType)
         | chainio
     )
     return chain_.invoke({"input_str": messages})[0].output
