@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 
-from datasets import load_dataset, DatasetDict
+from datasets import load_dataset, DatasetDict, Image
 
 from .logs import setup_logger
 
@@ -23,7 +23,7 @@ def get_kocem_dataset(config: str, cache_dir: str = '.cache') -> DatasetDict:
     """
     if not config:
         raise ValueError("Config name is required. Available configs: ['Architectural_Planning', 'Building_System', 'Comprehensive_Understanding', 'Construction_Management', 'Drawing_Interpretation', 'Domain_Reasoning', 'Interior', 'Industry_Jargon', 'Materials', 'Safety_Management', 'Standard_Nomenclature', 'Structural_Engineering']")
-    return load_dataset('pikaybh/KoCEM', config, cache_dir=cache_dir)
+    return load_dataset('pikaybh/KoCEM', config, cache_dir=cache_dir).cast_column('image', Image(decode=False))
 
 
 def main() -> None:

@@ -1,12 +1,12 @@
-import base64, json, os, re, yaml
-import numpy as np
+import io, json, os
 from collections import defaultdict
 import pandas as pd
 from PIL import Image
-from pandas_image_methods import PILMethods
-import io
+# from pandas_image_methods import PILMethods
 
 from schemas import Option, Quiz
+
+CANDIDATES = ["options", "eval_loop", "history", "feedbacks", "splits"]
 
 
 # Flatten nested dicts/lists for Parquet compatibility
@@ -28,6 +28,69 @@ def extract_bytes(b):
     while isinstance(b, dict):
         b = b.get('bytes', None)
     return b
+
+
+def flatten_for_df(obj):
+    if isinstance(obj, (dict, list)):
+        return json.dumps(obj, ensure_ascii=False)
+    return obj
+
+
+def parse_json_list(val):
+    if isinstance(val, str):
+        s = val.strip()
+        if not s or s.lower() == "none":
+            return []
+        if s.startswith('[') and s.endswith(']'):
+            try:
+                parsed = json.loads(s)
+                if isinstance(parsed, list):
+                    return parsed
+            except Exception:
+                return val
+    return val
+
+
+def pandas_type_to_hf_feature(dtype):
+    t = str(dtype)
+    # list/dict/object 타입이면 value 예시를 받아 재귀적으로 내부 구조를 추론
+    if t.startswith('bytes'):
+        return "bytes"
+    elif t.startswith("int"):
+        return "int64"
+    elif t.startswith("float"):
+        return "float64"
+    elif t == "bool":
+        return "bool"
+    else:
+        return "string"
+
+def feature_yaml_recursion(name, value, indent=6):
+    pad = ' ' * indent
+    if isinstance(value, dict):
+        lines = [f"{pad}- name: {name}", f"{pad}  struct:"]
+        for k, v in value.items():
+            lines.extend(feature_yaml_recursion(k, v, indent+2))
+        return lines
+    elif isinstance(value, list):
+        lines = [f"{pad}- name: {name}", f"{pad}  list:"]
+        if value:
+            lines.extend(feature_yaml_recursion(f"item", value[0], indent+2))
+        else:
+            lines.append(f"{pad}    dtype: unknown")
+        return lines
+    elif isinstance(value, bytes):
+        return [f"{pad}- name: {name}", f"{pad}  dtype: bytes"]
+    elif isinstance(value, int):
+        return [f"{pad}- name: {name}", f"{pad}  dtype: int64"]
+    elif isinstance(value, float):
+        return [f"{pad}- name: {name}", f"{pad}  dtype: float64"]
+    elif isinstance(value, bool):
+        return [f"{pad}- name: {name}", f"{pad}  dtype: bool"]
+    elif isinstance(value, str):
+        return [f"{pad}- name: {name}", f"{pad}  dtype: string"]
+    else:
+        return [f"{pad}- name: {name}", f"{pad}  dtype: unknown"]
 
 
 # 모든 컬럼을 dict/list는 json 문자열로, 숫자 타입은 string으로 변환
@@ -92,33 +155,58 @@ def _display_img(img):
         plt.show()
 
 
-def _image_to_base64(x, display_image: bool = True) -> dict:
+def _save_image_to_bytes(
+    img, 
+    path: str = None, display_image: bool = True
+) -> dict[str, str | bytes | None]:
+    """
+    이미지 객체를 bytes로 변환하고, 필요시 display합니다.
+    
+    Args:
+        img (Image.Image): PIL 이미지 객체.
+        path (str): 이미지 저장 경로 (선택적).
+    
+    Returns:
+        dict: {"bytes": bytes, "path": str (optional)} 형태로 반환.
+    """
+    
+    if display_image:
+        _display_img(img)
+    
+    y = {}
+    with io.BytesIO() as buf:
+        img.save(buf, format=img.format or 'PNG')
+        buf.seek(0)
+        y.update({
+            "bytes": buf.getvalue(),
+            "path": path.replace("\\", "/") if path else None  # bytes로 저장된 경우 path는 None
+        })
+    return y
+
+
+def _image_to_bytes(x, display_image: bool = True) -> dict[str, str | bytes | None]:
     """
     이미지 dict/bytes를 받아 {"bytes": bytes, "path": str (optional)}로 변환.
     display_image=True일 경우 변환된 이미지를 바로 display(IPython)로 보여줌.
     output_format: 'base64' (default) or 'hex' (16진수 문자열)
     """
-    bytes_ = x.get('bytes', None)
-    path_ = x.get('path', None)
-    
-    if bytes_:
-        img = Image.open(io.BytesIO(bytes_))
-        if display_image:
-            _display_img(img)
-        with io.BytesIO() as buf:
-            img.save(buf, format=img.format or 'PNG')
-            buf.seek(0)  # 버퍼의 시작으로 이동
-            y = {
-                "bytes": bytes(buf.getvalue()),
-                "path": path_
-            }
+    if x is None:
+        return {"bytes": None, "path": None}
+    elif isinstance(x, Image.Image):
+        return _save_image_to_bytes(img=x, display_image=display_image)
+    elif isinstance(x, bytes):
+        img = Image.open(io.BytesIO(x))
+        return _save_image_to_bytes(img=img, display_image=display_image)
+    elif isinstance(x, dict):
+        bytes_ = x.get('bytes', None)
+        path_ = x.get('path', None)
+        if bytes_:
+            img = Image.open(io.BytesIO(bytes_))
+            return _save_image_to_bytes(img=img, path=path_, display_image=display_image)
+        else:
+            return {"bytes": bytes_, "path": path_}
     else:
-        y = {
-            "bytes": bytes(),
-            "path": path_
-        }
-    print("({}) {}...".format(type(y["bytes"]), y["bytes"][:10]))  # Print first 10 bytes for debug
-    return y
+        raise ValueError(f"Unsupported image type: ({type(x) = }). Expected Image.Image, bytes, or dict with 'bytes' key.")
 
 
 def save_parquet(path: str, rows: list):
@@ -126,36 +214,17 @@ def save_parquet(path: str, rows: list):
     Parquet 파일을 pandas로 저장합니다. (pyarrow 완전 제거)
     모든 dict/list 컬럼은 JSON 문자열로 변환, 이미지 bytes는 그대로 저장.
     """
-    list_candidates = ["options", "eval_loop", "history", "feedbacks", "splits"]
 
     # Step 1: 리스트 컬럼 JSON 문자열 파싱
-    def parse_json_list(val):
-        if isinstance(val, str):
-            s = val.strip()
-            if s.startswith('[') and s.endswith(']'):
-                parsed = json.loads(s)
-                if isinstance(parsed, list):
-                    return parsed
-        return val
-
     for row in rows:
-        for col in list_candidates:
+        for col in CANDIDATES:
             if col in row:
                 row[col] = parse_json_list(row[col])
 
-    for row in rows:
         if "image" in row:
-            row["image"] = _image_to_base64(row["image"])
-            print(f"이미지 키: {row['image'].keys()}")
-            print(f"이미지 bytes: {row['image']['bytes'][:10]}...")
-            print(f"이미지 path: {row['image']['path']}")
+            row["image"] = _image_to_bytes(row["image"])
 
     # Step 2: 모든 dict/list 컬럼은 JSON 문자열로 변환
-    def flatten_for_df(obj):
-        if isinstance(obj, (dict, list)):
-            return json.dumps(obj, ensure_ascii=False)
-        return obj
-
     rows = [safe_json(row) for row in rows]
     for row in rows:
         for k, v in row.items():
@@ -193,9 +262,8 @@ def write_readme_from_outputs(
         raise FileNotFoundError(f"{eval_dir} 경로가 존재하지 않습니다.")
 
     # 1. config별 split별 parquet 파일 탐색 (pandas 기반)
+    total_bytes = 0
     for config_name in os.listdir(eval_dir):
-        if not config_name == "Drawing_Interpretation":
-            continue
         config_path = os.path.join(eval_dir, config_name)
         if not os.path.isdir(config_path):
             continue
@@ -208,10 +276,13 @@ def write_readme_from_outputs(
             except Exception:
                 continue
             num_examples = len(df)
-            total_instances += num_examples
+            file_bytes = os.path.getsize(file_path)
+            total_bytes += file_bytes
             configs[config_name]["splits"][split] = {
                 "num_examples": num_examples,
-                "file": os.path.relpath(file_path, os.path.join(output_dir, eval_result_dir))
+                "file": os.path.relpath(file_path, os.path.join(output_dir, eval_result_dir)),
+                "num_bytes": file_bytes,
+                "download_size": file_bytes
             }
             configs[config_name]["features"].update(df.columns)
             # 태그 추출 (예: question_type, field 등)
@@ -228,19 +299,6 @@ def write_readme_from_outputs(
     yaml_lines.append("task_categories:\n- question-answering\n- multiple-choice")
     yaml_lines.append(f"pretty_name: kocem:{eval_result_dir.lower()}")
     yaml_lines.append("dataset_info:")
-
-    def pandas_type_to_hf_feature(dtype):
-        t = str(dtype)
-        if t.startswith("int"):
-            return "int64"
-        elif t.startswith("float"):
-            return "float64"
-        elif t == "bool":
-            return "bool"
-        elif t == "object":
-            return "string"
-        else:
-            return "string"
 
     for config, info in configs.items():
         yaml_lines.append(f"  {config}:")
@@ -261,18 +319,48 @@ def write_readme_from_outputs(
         # 들여쓰기: 4칸
         for feat in sorted(info["features"]):
             dtype = dtype_map.get(feat, None)
-            if dtype is not None:
+            # 실제 데이터 예시 추출 (split별 첫 row)
+            example_value = None
+            for s_info in info["splits"].values():
+                split_file = s_info["file"]
+                try:
+                    df = pd.read_parquet(os.path.join(output_dir, eval_result_dir, split_file))
+                    if feat in df.columns and len(df) > 0:
+                        example_value = df[feat].iloc[0]
+                        # JSON 문자열이면 dict/list로 변환
+                        if isinstance(example_value, str):
+                            try:
+                                parsed = json.loads(example_value)
+                                example_value = parsed
+                            except Exception:
+                                pass
+                        break
+                except Exception:
+                    pass
+            if feat == "image":
+                # 이미지 컬럼은 bytes로 처리
+                yaml_lines.append(f"      - name: {feat}\n        dtype: image")
+            elif example_value is not None and isinstance(example_value, (dict, list)):
+                # dict/list/object 타입이면 재귀적으로 구조화
+                yaml_lines.extend(feature_yaml_recursion(feat, example_value, indent=6))
+            elif dtype is not None:
                 yaml_lines.append(f"      - name: {feat}\n        dtype: {pandas_type_to_hf_feature(dtype)}")
             else:
                 yaml_lines.append(f"      - name: {feat}\n        dtype: null")
         yaml_lines.append(f"    splits:")
         for split, s_info in info["splits"].items():
-            yaml_lines.append(f"      - name: {split}\n        num_examples: {s_info['num_examples']}")
+            yaml_lines.append(f"      - name: {split}")
+            yaml_lines.append(f"        num_examples: {s_info['num_examples']}")
+            yaml_lines.append(f"        num_bytes: {s_info['num_bytes']}")
+            yaml_lines.append(f"        download_size: {s_info['download_size']}")
+        yaml_lines.append(f"    dataset_size: {sum(s['num_bytes'] for s in info['splits'].values())}")
         feature_list = ', '.join(sorted(info["features"]))
         split_list = ', '.join(sorted(info["splits"].keys()))
         n = sum(s["num_examples"] for s in info["splits"].values())
         tag_list = ', '.join(sorted(all_tags)) if all_tags else "-"
         yaml_lines.append(f"    description: |\n      이 config는 {split_list} split에 걸쳐 {n}개의 인스턴스를 포함합니다.\n      Features: {feature_list}.\n      주요 태그: {tag_list}.")
+    
+    # Configs 정보 추가
     yaml_lines.append("configs:")
     for config, info in configs.items():
         yaml_lines.append(f"- config_name: {config}")
@@ -281,6 +369,8 @@ def write_readme_from_outputs(
             yaml_lines.append(f"  - split: {split}")
             path = s_info['file'].replace('\\', '/').replace('\\', '/')
             yaml_lines.append(f"    path: {path}")
+
+    # Tags 정보 추가
     yaml_lines.append("tags:")
     for tag in sorted(all_tags):
         yaml_lines.append(f"- {tag}")
@@ -302,10 +392,10 @@ def write_readme_from_outputs(
     disclaimer = (
         "\n<div style=\"border: 2px solid #f87171; background-color: #fef2f2; border-radius: 12px; padding: 20px; margin: 20px 0; color: #991b1b; font-family: 'Segoe UI', 'Apple SD Gothic Neo', Arial, sans-serif; font-size: 1.05em;\">\n"
         "  <strong style=\"font-size:1.18em;\">⚠️ Disclaimer</strong><br>\n"
-        "  본 데이터셋은 개인 연구 목적으로 독립적으로 구축되었습니다.<br>\n"
-        "  어떠한 경우에도 공유가 불가함을 양해 부탁드립니다.<br>\n"
-        "  접근 요청은 모두 거절될 예정이니, 요청을 삼가주시기 바랍니다.<br>\n"
-        "  <u>이해와 배려에 깊이 감사드립니다.</u>\n"
+        "  Please note that this dataset was independently compiled for personal research purposes only.<br>\n"
+        "  I regret that I am unable to share access under any circumstances.<br>\n"
+        "  Accordingly, I kindly ask that you refrain from submitting access requests, as all such requests will have to be declined.<br>\n"
+        "  <u>Thank you very much for your understanding and consideration.</u>\n"
         "</div>\n"
     )
 

@@ -9,6 +9,7 @@ def translate_only(
     cache_dir: str = None, 
     max_retries: int = 5, 
     subdataset: KoCEMConfigType = None, 
+    ignoreset: KoCEMConfigType = None,
     split: KoCEMDataSplitType = None,
     ignore: KoCEMDataSplitType = None,
     overwrite: bool = False
@@ -22,11 +23,15 @@ def translate_only(
         subdataset (str): KoCEM config name to process (required).
         split (str): Dataset split to process (e.g., 'train', 'test', 'validation'). If falsy, process all splits.
     """
+
     output_dir = os.getenv("OUTPUT_DIR", "output")
     cache_dir = cache_dir or os.getenv("CACHE_DIR", ".cache")
     eval_result_dir = os.getenv("EVAL_DIR", "eval_results")
 
     configs_to_run = [subdataset] if subdataset else KOCEM_CONFIGS
+    if ignoreset:
+        configs_to_run = [c for c in configs_to_run if c not in ignoreset]
+
     for config in configs_to_run:
         logger.debug(f"[CONFIG] {config} 시작...")
         ds = get_kocem_dataset(config, cache_dir=cache_dir)
