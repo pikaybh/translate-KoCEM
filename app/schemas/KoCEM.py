@@ -23,7 +23,7 @@ KoCEMConfigType = Literal[
     "Structural_Engineering"
 ]
 KoCEMDataSplitType = Literal["dev", "extra", "test", "val"]
-LabelType = Literal["A", "B", "C", "D", "E", "F", "G"]
+LabelType = Literal["A", "B", "C", "D", "E", "F", "G"] | None
 
 
 

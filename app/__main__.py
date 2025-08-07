@@ -2,7 +2,7 @@ import os
 
 from modules import translate_and_evaluate_chain, human_review_from_parquet
 from schemas import KOCEM_CONFIGS, KoCEMConfigType, KoCEMDataSplitType
-from utils import get_kocem_dataset, refresh_terminal, setup_logger
+from utils import get_kocem_dataset, refresh_terminal, setup_logger, write_readme_from_outputs
 
 
 def translate_only(
@@ -36,6 +36,7 @@ def translate_only(
         splits_to_run = [split] if split else list(ds.keys())
         if ignore:
             splits_to_run = [s for s in splits_to_run if s != ignore]
+            
         for split_name in splits_to_run:
             refresh_terminal()
             logger.info(f"[START] {config}/{split_name} 번역+평가")
@@ -43,12 +44,18 @@ def translate_only(
             if not overwrite and os.path.exists(output_path):
                 logger.info(f"[SKIP] {output_path} already exists and {overwrite=}. Skipping.")
                 continue
-            try:
-                translate_and_evaluate_chain(ds, split=split_name, cache_dir=cache_dir, output_path=output_path, max_retries=max_retries)
-            except Exception as e:
-                logger.error(f"Error during translation and evaluation for {config}/{split_name}: {e}")
-                logger.info(f"Skipping {config}/{split_name} due to error.")
-                continue
+            # try:
+            translate_and_evaluate_chain(ds, split=split_name, cache_dir=cache_dir, output_path=output_path, max_retries=max_retries)
+            # except Exception as e:
+            #     logger.error(f"Error during translation and evaluation for {config}/{split_name}: {e}")
+            #     logger.info(f"Skipping {config}/{split_name} due to error.")
+            #     continue
+
+    write_readme_from_outputs(
+        output_dir=output_dir,
+        eval_result_dir=eval_result_dir,
+        readme_path=f"{output_dir}/{eval_result_dir}/README.md"
+    )
 
 
 def from_translation_chain(
@@ -157,6 +164,25 @@ def run_pipeline(
             human_review_from_parquet(translated_path, output_path=human_review_path)
 
 
+def update_readme(
+    output_dir: str | None = None,
+    eval_result_dir: str | None = None,
+    readme_path: str = "README.md"
+):
+    """
+    Updates the README file with the latest evaluation results.
+    """
+    output_dir = output_dir or os.getenv("OUTPUT_DIR", "output")
+    eval_result_dir = eval_result_dir or os.getenv("EVAL_DIR", "eval_results")
+
+    write_readme_from_outputs(
+        output_dir=output_dir,
+        eval_result_dir=eval_result_dir,
+        readme_path=f"{output_dir}/{eval_result_dir}/README.md"
+    )
+    logger.info(f"README updated at {output_dir}/{eval_result_dir}/README.md")
+
+
 def main(*args, **kwargs):
     """
     Main entry point for running the pipeline.
@@ -168,7 +194,7 @@ def main(*args, **kwargs):
     
     cmd = args[0]
     if cmd in ["ls", "configs"]:
-        logger.info(f"Available KoCEM configs:\n- {'\n- '.join(KOCEM_CONFIGS)}")
+        logger.info("Available KoCEM configs:\n- {}".format('\n- '.join(KOCEM_CONFIGS)))
     elif cmd in ["translate"]:
         translate_only(**kwargs)
     elif cmd in ["run", "pipeline"]:
@@ -178,19 +204,21 @@ def main(*args, **kwargs):
     elif cmd in ["resume"]:
         again = kwargs.pop("again", False)
         from_HitL_output(**kwargs, again=again)
+    elif cmd in ["update_readme", "readme", "update"]:
+        update_readme(**kwargs)
     else:
         logger.error(f"Unknown command: {cmd}")
 
 
 if __name__ == "__main__":
-    import mlflow
+    # import mlflow
     from fire import Fire
     
-    
+
     logger = setup_logger(__name__)
 
-    mlflow.set_tracking_uri("http://localhost:5000")
-    mlflow.set_experiment("TranslateKoCEM:2")
-    mlflow.openai.autolog()
+    # mlflow.set_tracking_uri("http://localhost:5000")
+    # mlflow.set_experiment("TranslateKoCEM:2")
+    # mlflow.openai.autolog()
 
     Fire(main)

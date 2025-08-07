@@ -16,6 +16,7 @@ cache/
 
 # Environment variables
 .env
+**.venv/
 *.ps1
 
 # MLflow tracking
